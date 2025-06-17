@@ -4,7 +4,7 @@ import { collection, getDocs, addDoc, doc, deleteDoc, updateDoc } from 'firebase
 import './App.css';
 
 function StoreManagerView({ companyId }) {
-  const [regions, setRegions] = useState([]); // [{id, name, stores: [{id, name}]}]
+  const [regions, setRegions] = useState([]);
   const [newRegion, setNewRegion] = useState("");
   const [newStoreName, setNewStoreName] = useState("");
   const [selectedRegionId, setSelectedRegionId] = useState("");
@@ -13,15 +13,15 @@ function StoreManagerView({ companyId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showDeleteRegionId, setShowDeleteRegionId] = useState(null);
-  const [expandedRegions, setExpandedRegions] = useState([]); // region ids
-  const [toast, setToast] = useState(null); // {type, message}
+  const [expandedRegions, setExpandedRegions] = useState([]);
+  const [toast, setToast] = useState(null);
   const [regionValidation, setRegionValidation] = useState("");
   const [storeValidation, setStoreValidation] = useState("");
   const [editingStoreId, setEditingStoreId] = useState(null);
   const [editingStoreName, setEditingStoreName] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [regionFilter, setRegionFilter] = useState("");
-  const [selectedStores, setSelectedStores] = useState([]); // [{regionId, storeId}]
+  const [selectedStores, setSelectedStores] = useState([]);
   const [showAddStoreRegionId, setShowAddStoreRegionId] = useState(null);
   const [modalStoreName, setModalStoreName] = useState("");
   const [modalStoreValidation, setModalStoreValidation] = useState("");
@@ -205,44 +205,51 @@ function StoreManagerView({ companyId }) {
         return { id: regionId, name: regionName, stores };
       }));
       setRegions(regionsData);
+      setError(null);
     } catch (err) {
-      setError("Failed to refresh regions. Please try again.");
+      console.error("Error refreshing regions and stores:", err);
+      setError("Failed to refresh data. Please try again later.");
     } finally {
       setLoading(false);
     }
   };
 
+  // Export selected stores
   const handleExport = () => {
-    const rows = ["Store,Region"];
-    regions.forEach(region => {
-      region.stores.forEach(store => {
-        rows.push(`${store.name},${region.name}`);
-      });
-    });
-    const csvContent = "data:text/csv;charset=utf-8," + rows.join("\n");
+    const rows = [
+      ["Region", "Store"],
+      ...selectedStores.map(({ regionId, storeId }) => {
+        const region = regions.find(r => r.id === regionId);
+        const store = region?.stores.find(s => s.id === storeId);
+        return [region?.name || "", store?.name || ""];
+      })
+    ];
+    const csvContent = "data:text/csv;charset=utf-8," + rows.map(r => r.join(",")).join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `store_list.csv`);
+    link.setAttribute("download", "selected_stores.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // Toggle region expand/collapse
+  // Toggle region expansion
   const toggleRegion = (regionId) => {
-    setExpandedRegions((prev) =>
-      prev.includes(regionId)
+    setExpandedRegions(prev => 
+      prev.includes(regionId) 
         ? prev.filter(id => id !== regionId)
         : [...prev, regionId]
     );
   };
 
-  // Inline edit store name
+  // Edit store name
   const handleEditStore = (storeId, currentName) => {
     setEditingStoreId(storeId);
     setEditingStoreName(currentName);
   };
+
+  // Save store name edit
   const handleSaveStoreName = async (regionId, storeId) => {
     if (!editingStoreName.trim()) {
       setError("Store name cannot be empty");
@@ -256,88 +263,61 @@ function StoreManagerView({ companyId }) {
       setEditingStoreName("");
       setError(null);
       refreshRegions();
-      showToast("success", "Store name updated!");
     } catch (err) {
+      console.error("Error updating store name:", err);
       setError("Failed to update store name. Please try again.");
-      showToast("error", "Failed to update store name");
     }
   };
 
-  // Filtered regions and stores
-  const filteredRegions = regions
-    .filter(region => !regionFilter || region.id === regionFilter)
-    .map(region => ({
-      ...region,
-      stores: region.stores.filter(store =>
-        store.name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }))
-    .filter(region => region.stores.length > 0);
-
-  // Select/deselect store
+  // Toggle store selection
   const toggleStoreSelect = (regionId, storeId) => {
-    const key = `${regionId}|${storeId}`;
-    setSelectedStores(prev =>
-      prev.includes(key)
-        ? prev.filter(k => k !== key)
-        : [...prev, key]
-    );
+    setSelectedStores(prev => {
+      const isSelected = prev.some(s => s.regionId === regionId && s.storeId === storeId);
+      if (isSelected) {
+        return prev.filter(s => !(s.regionId === regionId && s.storeId === storeId));
+      } else {
+        return [...prev, { regionId, storeId }];
+      }
+    });
   };
-  // Select/deselect all in region
+
+  // Toggle select all stores in a region
   const toggleSelectAllRegion = (regionId, storeIds) => {
-    const regionKeys = storeIds.map(storeId => `${regionId}|${storeId}`);
-    const allSelected = regionKeys.every(key => selectedStores.includes(key));
-    setSelectedStores(prev =>
-      allSelected
-        ? prev.filter(key => !regionKeys.includes(key))
-        : [...prev, ...regionKeys.filter(key => !prev.includes(key))]
-    );
+    setSelectedStores(prev => {
+      const regionStores = prev.filter(s => s.regionId === regionId);
+      if (regionStores.length === storeIds.length) {
+        return prev.filter(s => s.regionId !== regionId);
+      } else {
+        const newStores = storeIds.map(storeId => ({ regionId, storeId }));
+        return [...prev.filter(s => s.regionId !== regionId), ...newStores];
+      }
+    });
   };
-  // Bulk delete
+
+  // Bulk delete selected stores
   const handleBulkDelete = async () => {
-    if (selectedStores.length === 0) return;
-    if (!window.confirm("Delete selected stores?")) return;
+    if (!selectedStores.length) return;
+    const confirmed = window.confirm(`Are you sure you want to delete ${selectedStores.length} stores?`);
+    if (!confirmed) return;
     try {
-      await Promise.all(selectedStores.map(async key => {
-        const [regionId, storeId] = key.split("|");
-        await deleteDoc(doc(db, "companies", companyId, "regions", regionId, "stores", storeId));
-      }));
+      await Promise.all(selectedStores.map(({ regionId, storeId }) => 
+        deleteDoc(doc(db, "companies", companyId, "regions", regionId, "stores", storeId))
+      ));
       setSelectedStores([]);
+      setError(null);
       refreshRegions();
       showToast("success", "Selected stores deleted!");
     } catch (err) {
-      showToast("error", "Failed to delete selected stores");
+      console.error("Error deleting stores:", err);
+      setError("Failed to delete stores. Please try again.");
+      showToast("error", "Failed to delete stores");
     }
   };
-  // Bulk export
-  const handleBulkExport = () => {
-    if (selectedStores.length === 0) return;
-    const rows = ["Store,Region"];
-    selectedStores.forEach(key => {
-      const [regionId, storeId] = key.split("|");
-      const region = regions.find(r => r.id === regionId);
-      const store = region?.stores.find(s => s.id === storeId);
-      if (region && store) rows.push(`${store.name},${region.name}`);
-    });
-    const csvContent = "data:text/csv;charset=utf-8," + rows.join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `selected_stores.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
-  // Add store via modal
+  // Add store modal
   const handleAddStoreModal = async (regionId) => {
     if (!modalStoreName.trim()) {
       setModalStoreValidation("Please enter a store name");
-      return;
-    }
-    const region = regions.find(r => r.id === regionId);
-    if (region && region.stores.some(s => s.name.toLowerCase() === modalStoreName.trim().toLowerCase())) {
-      setModalStoreValidation("Store name already exists in this region");
       return;
     }
     try {
@@ -345,50 +325,43 @@ function StoreManagerView({ companyId }) {
         name: modalStoreName.trim()
       });
       setModalStoreName("");
-      setModalStoreValidation("");
       setShowAddStoreRegionId(null);
+      setError(null);
       showToast("success", "Store added!");
       refreshRegions();
     } catch (err) {
-      setModalStoreValidation("Failed to add store. Please try again.");
+      console.error("Error adding store:", err);
+      setError("Failed to add store. Please try again.");
+      showToast("error", "Failed to add store");
     }
   };
 
   if (loading) {
     return (
-      <div className="dashboard-container">
-        <div className="loading-state">
-          <div className="spinner"></div>
-          <p>Loading regions and stores...</p>
-        </div>
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Loading regions and stores...</p>
       </div>
     );
   }
 
-  const totalStores = regions.reduce((sum, region) => sum + region.stores.length, 0);
+  if (error) {
+    return (
+      <div className="error-container">
+        <div className="error-message">
+          <i className="fas fa-exclamation-circle"></i>
+          <p>{error}</p>
+        </div>
+        <button className="retry-button" onClick={() => window.location.reload()}>
+          <i className="fas fa-redo"></i>
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-header">
-        <h1 className="dashboard-title">Store Manager</h1>
-        <div className="dashboard-controls">
-          <button className="btn btn-primary" onClick={handleExport}>
-            Export Store List
-          </button>
-        </div>
-      </div>
-
-      <div className="dashboard-summary" style={{marginBottom: '2rem'}}>
-        <div className="summary-card">
-          <h3>Total Stores</h3>
-          <div className="value">{totalStores}</div>
-        </div>
-        <div className="summary-card">
-          <h3>Regions</h3>
-          <div className="value">{regions.length}</div>
-        </div>
-      </div>
-
+    <div className="store-manager-container">
       <div className="store-filters-panel">
         <input
           className="form-control"
@@ -411,8 +384,8 @@ function StoreManagerView({ companyId }) {
       </div>
 
       <div className="add-store-form">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '2rem' }}>
-          <div className="form-group" style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
+          <div className="form-group" style={{ flex: 1 }}>
             <label htmlFor="regionName">Add Region</label>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <input
@@ -426,176 +399,229 @@ function StoreManagerView({ companyId }) {
               />
               <button className="btn btn-secondary" onClick={handleAddRegion}>Add</button>
             </div>
-            {regionValidation && <div className="validation-message">{regionValidation}</div>}
+            {regionValidation && <p className="validation-error">{regionValidation}</p>}
           </div>
-          
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', paddingTop: '1.5rem' }}>
-            <button 
-              className="btn btn-danger" 
-              disabled={selectedStores.length === 0} 
-              onClick={handleBulkDelete}
-            >
-              Delete Selected {selectedStores.length > 0 && `(${selectedStores.length})`}
-            </button>
-            <button 
-              className="btn btn-secondary" 
-              disabled={selectedStores.length === 0} 
-              onClick={handleBulkExport}
-            >
-              Export Selected
-            </button>
-          </div>
+
+          {selectedStores.length > 0 && (
+            <div className="bulk-actions" style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
+              <button
+                className="btn btn-danger"
+                onClick={handleBulkDelete}
+              >
+                Delete Selected ({selectedStores.length})
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={handleExport}
+              >
+                Export Selected
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {error && (
-        <div className="error-message">{error}</div>
-      )}
-
-      {totalStores === 0 ? (
-        <div className="empty-state">
-          <p>No stores added yet. Add your first region and store using the form above.</p>
-        </div>
-      ) : (
-        <div className="store-list">
-          {filteredRegions.map(region => (
-            <div key={region.id} className={`region-card modern-card${expandedRegions.includes(region.id) ? ' expanded' : ''}`} style={{position: 'relative'}}>
-              <button
-                className="icon-btn region-expand-btn"
-                onClick={() => toggleRegion(region.id)}
-                title={expandedRegions.includes(region.id) ? 'Collapse' : 'Expand'}
-                aria-label={expandedRegions.includes(region.id) ? 'Collapse region' : 'Expand region'}
-              >
-                {expandedRegions.includes(region.id) ? '▼' : '▶'}
-              </button>
-              <div className="region-header-row">
-                <div className="region-header-title-centered">{editingRegionId === region.id ? (
-                  <div className="region-title-edit-group">
+      <div className="regions-list">
+        {regions.map(region => (
+          <div key={region.id} className="region-card">
+            <div className="region-header">
+              <div className="region-info">
+                <button
+                  className="expand-button"
+                  onClick={() => toggleRegion(region.id)}
+                >
+                  {expandedRegions.includes(region.id) ? '▼' : '▶'}
+                </button>
+                {editingRegionId === region.id ? (
+                  <div className="edit-form">
                     <input
-                      className="form-control"
+                      type="text"
                       value={editingRegionName}
                       onChange={e => setEditingRegionName(e.target.value)}
-                      style={{ marginRight: '0.5rem', maxWidth: 180 }}
+                      className="form-control"
                     />
-                    <button className="btn btn-primary" onClick={() => handleSaveRegionName(region.id)} style={{ marginRight: '0.5rem' }}>Save</button>
-                    <button className="btn btn-secondary" onClick={() => setEditingRegionId(null)}>Cancel</button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => handleSaveRegionName(region.id)}
+                    >
+                      Save
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => {
+                        setEditingRegionId(null);
+                        setEditingRegionName("");
+                      }}
+                    >
+                      Cancel
+                    </button>
                   </div>
                 ) : (
-                  region.name
-                )}</div>
-                <div className="region-header-actions">
-                  <button className="btn btn-secondary add-store-btn" onClick={() => { setShowAddStoreRegionId(region.id); setModalStoreName(""); setModalStoreValidation(""); }} title="Add Store" aria-label="Add Store">Add Store</button>
-                  <button className="icon-btn" title="Edit Region" aria-label="Edit Region" onClick={() => handleEditRegion(region.id, region.name)}>
-                    ✏️
-                  </button>
-                  <button className="icon-btn" title="Delete Region" aria-label="Delete Region" onClick={() => setShowDeleteRegionId(region.id)}>
-                    🗑️
-                  </button>
-                  <input
-                    type="checkbox"
-                    checked={region.stores.length > 0 && region.stores.every(store => selectedStores.includes(`${region.id}|${store.id}`))}
-                    onChange={() => toggleSelectAllRegion(region.id, region.stores.map(s => s.id))}
-                    disabled={region.stores.length === 0}
-                    title="Select all stores in region"
-                    style={{marginLeft: 12}}
-                  />
-                </div>
+                  <h3>{region.name}</h3>
+                )}
               </div>
-              {showDeleteRegionId === region.id && (
-                <div className="modal-overlay">
-                  <div className="modal-content">
-                    <div className="modal-header">
-                      <h3>Delete Region</h3>
-                    </div>
-                    <p>Are you sure you want to delete the region "{region.name}" and all its stores?</p>
-                    <div className="modal-footer">
-                      <button className="btn btn-secondary" onClick={() => setShowDeleteRegionId(null)}>Cancel</button>
-                      <button className="btn btn-danger" onClick={() => handleDeleteRegion(region.id)}>Delete</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {expandedRegions.includes(region.id) && (
-                <div className={`region-stores expanded`} style={{maxHeight: 1000, overflow: 'hidden', transition: 'max-height 0.4s cubic-bezier(0.4,0,0.2,1)'}}>
-                  {region.stores.length === 0 ? (
-                    <div className="empty-message">No stores in this region.</div>
-                  ) : (
-                    region.stores.map(store => (
-                      <div key={store.id} className="store-item modern-store-card store-row">
-                        <input
-                          type="checkbox"
-                          checked={selectedStores.includes(`${region.id}|${store.id}`)}
-                          onChange={() => toggleStoreSelect(region.id, store.id)}
-                          style={{marginRight: 12}}
-                          title={`Select ${store.name}`}
-                        />
-                        <div className="store-avatar">{store.name ? store.name[0].toUpperCase() : "S"}</div>
-                        <div className="store-details">
-                          {editingStoreId === store.id ? (
-                            <>
-                              <input
-                                className="form-control"
-                                value={editingStoreName}
-                                onChange={e => setEditingStoreName(e.target.value)}
-                                style={{ marginRight: '0.5rem', maxWidth: 180 }}
-                              />
-                              <button className="btn btn-primary" onClick={() => handleSaveStoreName(region.id, store.id)} style={{ marginRight: '0.5rem' }}>Save</button>
-                              <button className="btn btn-secondary" onClick={() => setEditingStoreId(null)}>Cancel</button>
-                            </>
-                          ) : (
-                            <>
-                              <span className="store-name">{store.name}</span>
-                              <span className="store-region">{region.name}</span>
-                            </>
-                          )}
-                        </div>
-                        <div className="store-actions">
-                          {editingStoreId !== store.id && (
-                            <>
-                              <button className="icon-btn" title="Edit Store" aria-label="Edit Store" onClick={() => handleEditStore(store.id, store.name)}>
-                                ✏️
-                              </button>
-                              <button className="icon-btn" title="Delete Store" aria-label="Delete Store" onClick={() => handleDeleteStore(region.id, store.id)}>
-                                🗑️
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-              <div className="region-divider"></div>
-              {showAddStoreRegionId === region.id && (
-                <div className="modal-overlay">
-                  <div className="modal-content">
-                    <div className="modal-header">
-                      <h3>Add Store to {region.name}</h3>
-                    </div>
-                    <div className="modal-body">
-                      <input
-                        className="form-control"
-                        placeholder="Store name"
-                        value={modalStoreName}
-                        onChange={e => setModalStoreName(e.target.value)}
-                        autoFocus
-                      />
-                      {modalStoreValidation && <div className="validation-message" style={{marginTop: 8}}>{modalStoreValidation}</div>}
-                    </div>
-                    <div className="modal-footer">
-                      <button className="btn btn-secondary" onClick={() => setShowAddStoreRegionId(null)}>Cancel</button>
-                      <button className="btn btn-primary" onClick={() => handleAddStoreModal(region.id)}>Add Store</button>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <div className="region-actions">
+                {editingRegionId !== region.id && (
+                  <>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => handleEditRegion(region.id, region.name)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="btn btn-danger"
+                      onClick={() => setShowDeleteRegionId(region.id)}
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-          ))}
+
+            {expandedRegions.includes(region.id) && (
+              <div className="stores-list">
+                <div className="stores-header">
+                  <div className="select-all">
+                    <input
+                      type="checkbox"
+                      checked={region.stores.every(store => 
+                        selectedStores.some(s => s.regionId === region.id && s.storeId === store.id)
+                      )}
+                      onChange={() => toggleSelectAllRegion(
+                        region.id,
+                        region.stores.map(s => s.id)
+                      )}
+                    />
+                    <span>Select All</span>
+                  </div>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => setShowAddStoreRegionId(region.id)}
+                  >
+                    Add Store
+                  </button>
+                </div>
+
+                {region.stores.map(store => (
+                  <div key={store.id} className="store-card">
+                    <div className="store-info">
+                      <input
+                        type="checkbox"
+                        checked={selectedStores.some(s => 
+                          s.regionId === region.id && s.storeId === store.id
+                        )}
+                        onChange={() => toggleStoreSelect(region.id, store.id)}
+                      />
+                      {editingStoreId === store.id ? (
+                        <div className="edit-form">
+                          <input
+                            type="text"
+                            value={editingStoreName}
+                            onChange={e => setEditingStoreName(e.target.value)}
+                            className="form-control"
+                          />
+                          <button
+                            className="btn btn-primary"
+                            onClick={() => handleSaveStoreName(region.id, store.id)}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="btn btn-secondary"
+                            onClick={() => {
+                              setEditingStoreId(null);
+                              setEditingStoreName("");
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="store-name">{store.name}</span>
+                      )}
+                    </div>
+                    <div className="store-actions">
+                      {editingStoreId !== store.id && (
+                        <>
+                          <button
+                            className="btn btn-secondary"
+                            onClick={() => handleEditStore(store.id, store.name)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn-danger"
+                            onClick={() => handleDeleteStore(region.id, store.id)}
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {showDeleteRegionId && (
+        <div className="modal-overlay" onClick={() => setShowDeleteRegionId(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Delete Region</h3>
+              <button className="modal-close" onClick={() => setShowDeleteRegionId(null)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to delete this region and all its stores? This action cannot be undone.</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowDeleteRegionId(null)}>Cancel</button>
+              <button className="btn btn-danger" onClick={() => handleDeleteRegion(showDeleteRegionId)}>Delete</button>
+            </div>
+          </div>
         </div>
       )}
+
+      {showAddStoreRegionId && (
+        <div className="modal-overlay" onClick={() => setShowAddStoreRegionId(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Add Store</h3>
+              <button className="modal-close" onClick={() => setShowAddStoreRegionId(null)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label htmlFor="storeName">Store Name</label>
+                <input
+                  id="storeName"
+                  type="text"
+                  className="form-control"
+                  value={modalStoreName}
+                  onChange={e => setModalStoreName(e.target.value)}
+                  placeholder="Enter store name"
+                />
+                {modalStoreValidation && (
+                  <p className="validation-error">{modalStoreValidation}</p>
+                )}
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowAddStoreRegionId(null)}>Cancel</button>
+              <button className="btn btn-primary" onClick={() => handleAddStoreModal(showAddStoreRegionId)}>Add</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {toast && (
-        <div className={`toast-snackbar ${toast.type}`}>{toast.message}</div>
+        <div className={`toast toast-${toast.type}`}>
+          {toast.message}
+          <button onClick={() => setToast(null)}>×</button>
+        </div>
       )}
     </div>
   );

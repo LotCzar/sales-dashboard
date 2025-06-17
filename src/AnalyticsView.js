@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from './firebase.js';
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, CartesianGrid } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line } from 'recharts';
 import './App.css';
 
 // Status colors matching the badge colors
@@ -10,9 +10,6 @@ const STATUS_COLORS = {
   'Partially Paid': '#f5a623', // Orange/Yellow
   'Unpaid': '#e74c3c'         // Red
 };
-
-// Other chart colors
-const CHART_COLORS = ['#4a90e2', '#9b59b6', '#f39c12', '#16a085', '#34495e'];
 
 const HomeView = ({ companyId }) => {
   const [invoices, setInvoices] = useState([]);

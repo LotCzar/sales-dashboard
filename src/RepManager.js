@@ -40,9 +40,8 @@ function ConfirmModal({ open, title, message, onConfirm, onCancel }) {
 }
 
 function RepManager({ companyId, currentUser }) {
-  // Placeholder state for reps, join requests, and invite email
-  const [reps, setReps] = useState([]); // [{uid, name, email, role}]
-  const [joinRequests, setJoinRequests] = useState([]); // [{id, userName, userEmail}]
+  const [reps, setReps] = useState([]);
+  const [joinRequests, setJoinRequests] = useState([]);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteError, setInviteError] = useState("");
   const [inviteSuccess, setInviteSuccess] = useState("");
@@ -161,7 +160,6 @@ function RepManager({ companyId, currentUser }) {
       onConfirm: async () => {
         setModal({ open: false });
         try {
-          // ...same as handleApprove...
           const reqRef = doc(db, 'joinRequests', requestId);
           const reqSnap = await getDoc(reqRef);
           if (!reqSnap.exists()) return;
@@ -208,123 +206,132 @@ function RepManager({ companyId, currentUser }) {
     });
   };
 
-  // Invite rep
-  const handleInvite = async (e) => {
-    e.preventDefault();
-    setInviteError("");
-    setInviteSuccess("");
-    if (!inviteEmail.match(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)) {
-      setInviteError("Enter a valid email address.");
-      return;
-    }
-    // TODO: Implement actual invite logic (e.g., send email, create invite doc)
-    setInviteSuccess("Invite sent!");
-    setInviteEmail("");
-  };
-
-  // Filtered reps/requests
+  // Filter reps based on search
   const filteredReps = reps.filter(rep => {
-    const q = search.toLowerCase();
-    return (
-      rep.name.toLowerCase().includes(q) ||
-      rep.email.toLowerCase().includes(q) ||
-      rep.role.toLowerCase().includes(q)
-    );
+    const searchText = search.toLowerCase();
+    return !searchText || 
+      rep.name.toLowerCase().includes(searchText) ||
+      rep.email.toLowerCase().includes(searchText);
   });
-  const filteredRequests = joinRequests.filter(req => {
-    const q = search.toLowerCase();
+
+  if (loading) {
     return (
-      (req.userName || '').toLowerCase().includes(q) ||
-      (req.userEmail || '').toLowerCase().includes(q)
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Loading reps data...</p>
+      </div>
     );
-  });
+  }
 
   return (
-    <div className="rep-manager-container">
-      <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: '' })} />
-      <ConfirmModal {...modal} />
-      <h2>Rep Manager</h2>
-      <div className="rep-manager-header">
-        <form className="invite-form" onSubmit={handleInvite}>
+    <div className="reps-container">
+      <div className="reps-header">
+        <h2>Manage Reps</h2>
+        <div className="reps-actions">
           <input
-            type="email"
-            placeholder="Invite rep by email"
-            value={inviteEmail}
-            onChange={e => setInviteEmail(e.target.value)}
-            className="invite-input"
-            required
+            type="text"
+            placeholder="Search reps..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="form-control"
           />
-          <button type="submit" className="btn btn-primary">Invite</button>
-        </form>
-        {inviteError && <div className="invite-error">{inviteError}</div>}
-        {inviteSuccess && <div className="invite-success">{inviteSuccess}</div>}
-        <input
-          type="text"
-          className="rep-search"
-          placeholder="Search reps or requests..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-      </div>
-      <section className="rep-section">
-        <h3>Current Reps</h3>
-        <div className="rep-list">
-          {filteredReps.length === 0 ? (
-            <div className="empty-message">No reps found.</div>
-          ) : (
-            filteredReps.map(rep => (
-              <div className="rep-card" key={rep.uid}>
-                <div className="rep-avatar">{getInitials(rep.name, rep.email)}</div>
-                <div className="rep-info">
-                  <div className="rep-name">{rep.name}</div>
-                  <div className="rep-email">{rep.email}</div>
-                </div>
-                <div className="rep-role-edit">
-                  <select
-                    value={rep.role}
-                    onChange={e => handleRoleChange(rep.uid, e.target.value)}
-                    className="rep-role-select"
-                  >
-                    <option value="rep">Rep</option>
-                    <option value="manager">Manager</option>
-                  </select>
-                </div>
-                <div className="rep-actions">
-                  <button className="btn btn-danger" onClick={() => confirmRemove(rep.uid, rep.name)}>
-                    Remove
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
         </div>
-      </section>
-      <section className="join-requests-section">
-        <h3>Pending Join Requests</h3>
-        <div className="rep-list">
-          {filteredRequests.length === 0 ? (
-            <div className="empty-message">No pending requests.</div>
-          ) : (
-            filteredRequests.map(req => (
-              <div className="rep-card" key={req.id}>
-                <div className="rep-avatar">{getInitials(req.userName, req.userEmail)}</div>
-                <div className="rep-info">
-                  <div className="rep-name">{req.userName}</div>
-                  <div className="rep-email">{req.userEmail}</div>
+      </div>
+
+      {joinRequests.length > 0 && (
+        <div className="join-requests-section">
+          <h3>Join Requests</h3>
+          <div className="join-requests-list">
+            {joinRequests.map(request => (
+              <div key={request.id} className="join-request-card">
+                <div className="request-info">
+                  <div className="request-avatar">
+                    {getInitials(request.userName, request.userEmail)}
+                  </div>
+                  <div className="request-details">
+                    <h4>{request.userName || 'Unknown User'}</h4>
+                    <p>{request.userEmail}</p>
+                  </div>
                 </div>
-                <div className="rep-actions">
-                  <button className="btn btn-primary" onClick={() => confirmApprove(req.id, req.userName)}>
+                <div className="request-actions">
+                  <button
+                    className="btn btn-success"
+                    onClick={() => confirmApprove(request.id, request.userName)}
+                  >
                     Approve
                   </button>
-                  <button className="btn btn-danger" style={{marginLeft: '0.5rem'}} onClick={() => confirmReject(req.id, req.userName)}>
+                  <button
+                    className="btn btn-danger"
+                    onClick={() => confirmReject(request.id, request.userName)}
+                  >
                     Reject
                   </button>
                 </div>
               </div>
-            ))
-          )}
+            ))}
+          </div>
         </div>
-      </section>
+      )}
+
+      <div className="reps-list">
+        {filteredReps.map(rep => (
+          <div key={rep.uid} className="rep-card">
+            <div className="rep-info">
+              <div className="rep-avatar">
+                {getInitials(rep.name, rep.email)}
+              </div>
+              <div className="rep-details">
+                <h4>{rep.name || 'Unknown User'}</h4>
+                <p>{rep.email}</p>
+              </div>
+            </div>
+            <div className="rep-actions">
+              <select
+                value={rep.role}
+                onChange={e => handleRoleChange(rep.uid, e.target.value)}
+                className="form-control"
+              >
+                <option value="rep">Rep</option>
+                <option value="admin">Admin</option>
+              </select>
+              <button
+                className="btn btn-danger"
+                onClick={() => confirmRemove(rep.uid, rep.name)}
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="invite-section">
+        <h3>Invite New Rep</h3>
+        <div className="invite-form">
+          <input
+            type="email"
+            placeholder="Enter email address"
+            value={inviteEmail}
+            onChange={e => setInviteEmail(e.target.value)}
+            className="form-control"
+          />
+          <button
+            className="btn btn-primary"
+            onClick={handleInvite}
+          >
+            Send Invite
+          </button>
+        </div>
+        {inviteError && <p className="error-message">{inviteError}</p>}
+        {inviteSuccess && <p className="success-message">{inviteSuccess}</p>}
+      </div>
+
+      <ConfirmModal {...modal} />
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ message: "", type: "" })}
+      />
     </div>
   );
 }

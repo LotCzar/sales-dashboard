@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { db } from './firebase.js';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import './App.css';
 import Login from './Login.js';
 import InvoicesView from './PaymentsView.js';
 import StoreManagerView from './StoreManagerView.js';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import Register from './Register.js';
 import RepManager from './RepManager.js';
 import ReportsView from './ReportsView.js';
@@ -14,24 +13,12 @@ import { BrowserRouter as Router, Routes, Route, NavLink } from 'react-router-do
 import MobileNav from './components/MobileNav.js';
 
 function App() {
-  const [selectedStore, setSelectedStore] = useState("");
-  const [selectedRep, setSelectedRep] = useState("");
-  const [selectedRegion, setSelectedRegion] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
   const [reports, setReports] = useState([]);
   const [companyName, setCompanyName] = useState(localStorage.getItem("companyName") || "");
   const [regionStoreMap, setRegionStoreMap] = useState({});
   const [showRegister, setShowRegister] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const companyId = localStorage.getItem('companyId');
-  const [summary, setSummary] = useState({});
-  const [regions, setRegions] = useState([]);
-  const [stores, setStores] = useState([]);
-  const [invoices, setInvoices] = useState([]);
-  const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     const companyId = localStorage.getItem("companyId");
@@ -58,36 +45,6 @@ function App() {
     };
     fetchData();
   }, []);
-
-  const allStores = Object.values(regionStoreMap).flat().filter(Boolean);
-  const filteredReports = reports
-    .filter(r => !selectedStore || r.store === selectedStore)
-    .filter(r => !selectedRep || r.repName === selectedRep)
-    .filter(r => !selectedRegion || r.region === selectedRegion)
-    .filter(r => !dateFrom || new Date(r.date?.seconds * 1000 || 0) >= new Date(dateFrom))
-    .filter(r => !dateTo || new Date(r.date?.seconds * 1000 || 0) <= new Date(dateTo));
-
-  const handleExportReports = () => {
-    const headers = ["Date", "Rep", "Store", "Region", "Sample Tier", "Order Dropped", "Invoice #", "Invoice Total"];
-    const rows = filteredReports.map(report => [
-      report.date?.seconds ? new Date(report.date.seconds * 1000).toLocaleString() : '',
-      report.repName || '',
-      report.store || '',
-      report.region || '',
-      report.sampleTier || '',
-      report.orderDropped ? "Yes" : "No",
-      report.invoiceNumber || '',
-      report.invoiceTotal || ''
-    ]);
-    const csv = [headers, ...rows].map(row => row.map(val => `"${val}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `${companyName}_filtered_reports.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   if (!companyName) {
     return showRegister ? (
