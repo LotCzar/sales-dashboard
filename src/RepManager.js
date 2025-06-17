@@ -214,6 +214,19 @@ function RepManager({ companyId, currentUser }) {
       rep.email.toLowerCase().includes(searchText);
   });
 
+  // Invite rep handler (placeholder)
+  const handleInvite = (e) => {
+    e.preventDefault();
+    setInviteError("");
+    setInviteSuccess("");
+    if (!inviteEmail.match(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)) {
+      setInviteError("Enter a valid email address.");
+      return;
+    }
+    setInviteSuccess("Invite sent! (This is a placeholder)");
+    setInviteEmail("");
+  };
+
   if (loading) {
     return (
       <div className="loading-container">
