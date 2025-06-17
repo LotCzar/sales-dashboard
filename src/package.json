@@ -1,0 +1,17 @@
+{
+  "name": "sales-dashboard",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Sales dashboard application",
+  "main": "index.js",
+  "scripts": {
+    "populate-stores": "node scripts/populate_stores.js",
+    "cleanup-companies": "node scripts/cleanup_companies.js",
+    "delete-duplicates": "node scripts/delete_duplicates.js",
+    "verify-data": "node scripts/verify_data.js"
+  },
+  "dependencies": {
+    "firebase": "^10.8.0",
+    "firebase-admin": "^12.0.0"
+  }
+}
