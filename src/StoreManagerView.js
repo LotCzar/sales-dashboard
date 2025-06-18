@@ -460,6 +460,14 @@ function StoreManagerView({ companyId }) {
                   <h3>{region.name}</h3>
                 )}
               </div>
+              
+              <div className="region-stats">
+                <div className="region-stat">
+                  <span>📊</span>
+                  <span>{region.stores.length} stores</span>
+                </div>
+              </div>
+              
               <div className="region-actions">
                 {editingRegionId !== region.id && (
                   <>
@@ -494,7 +502,7 @@ function StoreManagerView({ companyId }) {
                         region.stores.map(s => s.id)
                       )}
                     />
-                    <span>Select All</span>
+                    <span>Select All Stores</span>
                   </div>
                   <button
                     className="btn btn-primary"
@@ -507,55 +515,73 @@ function StoreManagerView({ companyId }) {
                 {region.stores.map(store => (
                   <div key={store.id} className="store-card">
                     <div className="store-info">
-                      <input
-                        type="checkbox"
-                        checked={selectedStores.some(s => 
-                          s.regionId === region.id && s.storeId === store.id
+                      <div className="store-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={selectedStores.some(s => 
+                            s.regionId === region.id && s.storeId === store.id
+                          )}
+                          onChange={() => toggleStoreSelect(region.id, store.id)}
+                        />
+                      </div>
+                      
+                      <div className="store-avatar">
+                        {store.name.charAt(0).toUpperCase()}
+                      </div>
+                      
+                      <div className="store-details">
+                        {editingStoreId === store.id ? (
+                          <div className="edit-form">
+                            <input
+                              type="text"
+                              value={editingStoreName}
+                              onChange={e => setEditingStoreName(e.target.value)}
+                              className="form-control"
+                            />
+                            <button
+                              className="btn btn-primary"
+                              onClick={() => handleSaveStoreName(region.id, store.id)}
+                            >
+                              Save
+                            </button>
+                            <button
+                              className="btn btn-secondary"
+                              onClick={() => {
+                                setEditingStoreId(null);
+                                setEditingStoreName("");
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="store-name">{store.name}</div>
+                            <div className="store-meta">
+                              <span>📍 {region.name}</span>
+                              <span className="store-status">Active</span>
+                            </div>
+                          </>
                         )}
-                        onChange={() => toggleStoreSelect(region.id, store.id)}
-                      />
-                      {editingStoreId === store.id ? (
-                        <div className="edit-form">
-                          <input
-                            type="text"
-                            value={editingStoreName}
-                            onChange={e => setEditingStoreName(e.target.value)}
-                            className="form-control"
-                          />
-                          <button
-                            className="btn btn-primary"
-                            onClick={() => handleSaveStoreName(region.id, store.id)}
-                          >
-                            Save
-                          </button>
-                          <button
-                            className="btn btn-secondary"
-                            onClick={() => {
-                              setEditingStoreId(null);
-                              setEditingStoreName("");
-                            }}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="store-name">{store.name}</span>
-                      )}
+                      </div>
                     </div>
+                    
                     <div className="store-actions">
                       {editingStoreId !== store.id && (
                         <>
                           <button
-                            className="btn btn-secondary"
+                            className="store-action-btn edit"
                             onClick={() => handleEditStore(store.id, store.name)}
+                            title="Edit Store"
                           >
-                            Edit
+                            ✏️
                           </button>
                           <button
-                            className="btn btn-danger"
+                            className="store-action-btn delete"
                             onClick={() => handleDeleteStore(region.id, store.id)}
+                            title="Delete Store"
                           >
-                            Delete
+                            🗑️
                           </button>
                         </>
                       )}

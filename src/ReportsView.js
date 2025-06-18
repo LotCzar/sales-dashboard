@@ -152,36 +152,18 @@ const ReportsView = ({ companyId }) => {
       </section>
 
       <section className="filters-panel">
-        <div className="search-container">
-          <div className="search-wrapper">
-            <i className="fas fa-search search-icon"></i>
-            <input
-              type="text"
-              className="search-input"
-              placeholder="Search reports by any field..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-            {search && (
-              <button 
-                className="clear-search"
-                onClick={() => setSearch("")}
-                aria-label="Clear search"
-              >
-                ×
-              </button>
-            )}
-          </div>
+        <div className="filter-search-row">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search reports by any field..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
         </div>
-
         <div className="filters-grid">
           <div className="filter-group">
-            <label className="filter-label">
-              Region
-              {regionFilter.length > 0 && (
-                <span className="filter-count">{regionFilter.length}</span>
-              )}
-            </label>
+            <label className="filter-label">Region</label>
             <select
               className="filter-select"
               multiple
@@ -193,14 +175,8 @@ const ReportsView = ({ companyId }) => {
               ))}
             </select>
           </div>
-
           <div className="filter-group">
-            <label className="filter-label">
-              Store
-              {storeFilter.length > 0 && (
-                <span className="filter-count">{storeFilter.length}</span>
-              )}
-            </label>
+            <label className="filter-label">Store</label>
             <select
               className="filter-select"
               multiple
@@ -212,14 +188,8 @@ const ReportsView = ({ companyId }) => {
               ))}
             </select>
           </div>
-
           <div className="filter-group">
-            <label className="filter-label">
-              Sales Rep
-              {repFilter.length > 0 && (
-                <span className="filter-count">{repFilter.length}</span>
-              )}
-            </label>
+            <label className="filter-label">Sales Rep</label>
             <select
               className="filter-select"
               multiple
@@ -231,24 +201,20 @@ const ReportsView = ({ companyId }) => {
               ))}
             </select>
           </div>
-        </div>
-
-        <div className="filter-actions">
-          <button 
-            className="btn-clear"
-            onClick={() => {
-              setSearch("");
-              setRegionFilter([]);
-              setStoreFilter([]);
-              setRepFilter([]);
-            }}
-            disabled={!search && regionFilter.length === 0 && storeFilter.length === 0 && repFilter.length === 0}
-          >
-            Clear Filters
-          </button>
-          <button className="btn-apply" onClick={handleExportReports}>
-            Export Results
-          </button>
+          <div className="filter-actions filter-actions-desktop" style={{ alignSelf: 'end', marginLeft: 'auto' }}>
+            <button 
+              className="btn-clear"
+              onClick={() => {
+                setSearch("");
+                setRegionFilter([]);
+                setStoreFilter([]);
+                setRepFilter([]);
+              }}
+              disabled={!search && regionFilter.length === 0 && storeFilter.length === 0 && repFilter.length === 0}
+            >
+              Reset Filters
+            </button>
+          </div>
         </div>
       </section>
 
