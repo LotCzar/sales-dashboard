@@ -73,6 +73,8 @@ function App() {
           <NavLink to="/invoices" className={({ isActive }) => "nav-tab" + (isActive ? " active" : "")}>Invoices</NavLink>
           <NavLink to="/stores" className={({ isActive }) => "nav-tab" + (isActive ? " active" : "")}>Store Manager</NavLink>
           <NavLink to="/reps" className={({ isActive }) => "nav-tab" + (isActive ? " active" : "")}>Manage Reps</NavLink>
+          <div className="desktop-nav-spacer" style={{ flex: 1 }}></div>
+          <button className="logout-btn" onClick={() => { localStorage.removeItem("companyName"); setCompanyName(""); }}>Log Out</button>
         </nav>
         <Routes>
           <Route path="/" element={
@@ -80,9 +82,6 @@ function App() {
               <header className="dashboard-header">
                 <div className="dashboard-title">
                   <h1>{companyName} Dashboard</h1>
-                </div>
-                <div className="dashboard-controls">
-                  <button onClick={() => { localStorage.removeItem("companyName"); setCompanyName(""); }}>Log Out</button>
                 </div>
               </header>
               <HomeView companyId={companyId} />
@@ -94,9 +93,6 @@ function App() {
                 <div className="dashboard-title">
                   <h1>{companyName} Dashboard</h1>
                 </div>
-                <div className="dashboard-controls">
-                  <button onClick={() => { localStorage.removeItem("companyName"); setCompanyName(""); }}>Log Out</button>
-                </div>
               </header>
               <ReportsView companyId={companyId} />
             </div>
@@ -106,9 +102,6 @@ function App() {
               <header className="dashboard-header">
                 <div className="dashboard-title">
                   <h1>{companyName} Dashboard</h1>
-                </div>
-                <div className="dashboard-controls">
-                  <button onClick={() => { localStorage.removeItem("companyName"); setCompanyName(""); }}>Log Out</button>
                 </div>
               </header>
               <InvoicesView companyId={companyId} />
@@ -120,9 +113,6 @@ function App() {
                 <div className="dashboard-title">
                   <h1>{companyName} Dashboard</h1>
                 </div>
-                <div className="dashboard-controls">
-                  <button onClick={() => { localStorage.removeItem("companyName"); setCompanyName(""); }}>Log Out</button>
-                </div>
               </header>
               <StoreManagerView companyId={companyId} />
             </div>
@@ -132,9 +122,6 @@ function App() {
               <header className="dashboard-header">
                 <div className="dashboard-title">
                   <h1>{companyName} Dashboard</h1>
-                </div>
-                <div className="dashboard-controls">
-                  <button onClick={() => { localStorage.removeItem("companyName"); setCompanyName(""); }}>Log Out</button>
                 </div>
               </header>
               <RepManager companyId={companyId} currentUser={currentUser} />
