@@ -57,33 +57,45 @@ function RepManager({ companyId, currentUser }) {
     // Fetch reps (allowedUsers)
     const fetchReps = async () => {
       try {
+        console.log('🔍 RepManager: Starting fetchReps');
         const companyRef = doc(db, 'companies', companyId);
         const companySnap = await getDoc(companyRef);
         if (!companySnap.exists()) {
+          console.log('❌ RepManager: Company document not found');
           setReps([]);
           return;
         }
         const allowedUsers = companySnap.data().allowedUsers || [];
+        console.log('👥 RepManager: Allowed users from company:', allowedUsers);
+        console.log('🔍 RepManager: Company data:', companySnap.data());
+        
         // Fetch user profiles
         const userProfiles = await Promise.all(
           allowedUsers.map(async (uid) => {
+            console.log(`🔍 RepManager: Fetching user profile for: ${uid}`);
             const userRef = doc(db, 'users', uid);
             const userSnap = await getDoc(userRef);
             if (userSnap.exists()) {
               const data = userSnap.data();
-              return {
+              console.log(`📋 RepManager: User data for ${uid}:`, data);
+              const rep = {
                 uid,
                 name: data.name || '',
                 email: data.email || '',
                 role: data.role || 'rep',
               };
+              console.log(`✅ RepManager: Created rep object for ${uid}:`, rep);
+              return rep;
             } else {
+              console.log(`❌ RepManager: User document not found for: ${uid}`);
               return { uid, name: '', email: '', role: 'rep' };
             }
           })
         );
+        console.log('📋 RepManager: Final userProfiles array:', userProfiles);
         setReps(userProfiles);
       } catch (err) {
+        console.error('❌ RepManager: Error fetching reps:', err);
         setReps([]);
       }
     };
@@ -287,35 +299,39 @@ function RepManager({ companyId, currentUser }) {
       )}
 
       <div className="reps-list">
-        {filteredReps.map(rep => (
-          <div key={rep.uid} className="rep-card">
-            <div className="rep-info">
-              <div className="rep-avatar">
-                {getInitials(rep.name, rep.email)}
+        {console.log('🔍 RepManager: Rendering reps list, filteredReps:', filteredReps)}
+        {filteredReps.map(rep => {
+          console.log('🔍 RepManager: Rendering rep:', rep);
+          return (
+            <div key={rep.uid} className="rep-card">
+              <div className="rep-info">
+                <div className="rep-avatar">
+                  {getInitials(rep.name, rep.email)}
+                </div>
+                <div className="rep-details">
+                  <h4>{rep.name || 'Unknown User'}</h4>
+                  <p>{rep.email}</p>
+                </div>
               </div>
-              <div className="rep-details">
-                <h4>{rep.name || 'Unknown User'}</h4>
-                <p>{rep.email}</p>
+              <div className="rep-actions">
+                <select
+                  value={rep.role}
+                  onChange={e => handleRoleChange(rep.uid, e.target.value)}
+                  className="form-control"
+                >
+                  <option value="rep">Rep</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <button
+                  className="btn btn-danger"
+                  onClick={() => confirmRemove(rep.uid, rep.name)}
+                >
+                  Remove
+                </button>
               </div>
             </div>
-            <div className="rep-actions">
-              <select
-                value={rep.role}
-                onChange={e => handleRoleChange(rep.uid, e.target.value)}
-                className="form-control"
-              >
-                <option value="rep">Rep</option>
-                <option value="admin">Admin</option>
-              </select>
-              <button
-                className="btn btn-danger"
-                onClick={() => confirmRemove(rep.uid, rep.name)}
-              >
-                Remove
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="invite-section">
